@@ -167,6 +167,48 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+    if (cmdline[0] == '\n') return;
+
+    char** argv = malloc(MAXARGS);
+    int childStatus, execStatus, bg = parseline(cmdline, argv);
+    pid_t pid;
+    sigset_t sigSet;
+    
+    // Not built-in command
+    if (!builtin_cmd(argv)) {
+        // Block SIGCHLD from executing before parent adds job
+        sigemptyset(&sigSet);
+        sigaddset(&sigSet, SIGCHLD);
+        sigprocmask(SIG_BLOCK, &sigSet, NULL);
+        pid = fork();
+        setpgid(0, 0);          // Creates new proccess group
+        // Forking Error
+        if ((pid) < 0) {
+            perror("fork");
+            exit(1);
+        // Child
+        } else if (pid == 0) {
+            // If invalid foreground argument, print error
+            execStatus = execve(argv[0], argv, environ);
+            sigprocmask(SIG_UNBLOCK, &sigSet, NULL);
+            if (execStatus) { 
+                printf("%s: command not found (child)\n", argv[0]);
+                exit(1); 
+            }
+        // Parent
+        } else {
+            // Background job
+            if (bg) {
+                addjob(jobs, pid, BG, cmdline);
+                sigprocmask(SIG_UNBLOCK, &sigSet, NULL);
+            // Foreground job
+            } else {
+                addjob(jobs, pid, FG, cmdline);
+                sigprocmask(SIG_UNBLOCK, &sigSet, NULL);
+                waitpid(pid, &childStatus, WUNTRACED);              // Waits for foreground proccess (child)
+            }
+        }
+    }
     return;
 }
 
@@ -258,6 +300,7 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+
     return;
 }
 
@@ -266,6 +309,12 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    struct job_t *jb;
+    jb = getjobpid(jobs, pid);
+    while(jb -> state == FG) {
+        sleep(1);
+    }
+
     return;
 }
 

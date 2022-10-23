@@ -233,6 +233,23 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+    char quit[] = "quit";
+    char fg[] = "fg";
+    char bg[] = "bg";
+    char jbs[] = "jobs";
+
+    if(!strcmp(argv[0], quit)){ // quit command
+        exit(0);
+        return 1;
+    }
+    else if((!strcmp(argv[0], fg) || !strcmp(argv[0], bg))){
+        do_bgfg(argv);
+        return 1;
+    }
+    else if(!strcmp(argv[0], jbs)){
+        listjobs(jobs);
+    }
+    //quit command
     return 0;     /* not a builtin command */
 }
 

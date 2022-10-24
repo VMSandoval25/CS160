@@ -172,9 +172,9 @@ int main(int argc, char **argv)
  */
 void eval(char *cmdline) // NEED TO CHANGE
 {
-    // char **argv = malloc(MAXARGS);
     char **argv = malloc(MAXARGS);
     int bg = parseline(cmdline, argv);
+    
     // returns if command line empty or has built in command
     if (cmdline[0] == '\n' || builtin_cmd(argv))
     {
@@ -184,7 +184,6 @@ void eval(char *cmdline) // NEED TO CHANGE
     sigemptyset(&mask);
     sigaddset(&mask, SIGCHLD);
     sigprocmask(SIG_BLOCK, &mask, NULL); // blocking child till parent adds job
-    
     pid_t pid = fork();
     if (pid < 0) // fork error
     {
@@ -305,6 +304,7 @@ int builtin_cmd(char **argv)
     else if (!strcmp(argv[0], jbs))
     {
         listjobs(jobs);
+        return 1;
     }
     // quit command
     return 0; /* not a builtin command */
@@ -315,6 +315,7 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv)
 {
+    
     int jd, pd;
     char bg[] = "bg";
     struct job_t *job;
@@ -388,6 +389,8 @@ void do_bgfg(char **argv)
         waitfg(job->pid);
     }
     return;
+
+
 }
 
 /*
@@ -395,6 +398,7 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    /*
     struct job_t *jb;
     jb = getjobpid(jobs, pid);
     while (jb->state == FG)
@@ -403,6 +407,9 @@ void waitfg(pid_t pid)
     }
 
     return;
+    */
+   while(fgpid(jobs)==pid) {}
+   return;
 }
 
 /*****************
@@ -424,11 +431,16 @@ void sigchld_handler(int sig)
     // we are gonna check for termination without waiting
     // creating a non-blocking polling waitpid call
 
-    while ((process_id = waitpid(-1, &status, WNOHANG)) > 0)
+    while ((process_id = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0)
     {
         if (WIFEXITED(status) || WIFSIGNALED(status))
         {
             deletejob(jobs, process_id);
+        }
+        else{
+            struct job_t *job;
+			job = getjobpid(jobs, process_id);
+			job -> state = ST;
         }
     }
 

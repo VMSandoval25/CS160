@@ -196,7 +196,7 @@ void eval(char *cmdline) // NEED TO CHANGE
         sigprocmask(SIG_UNBLOCK, &mask, NULL); // unblocking
         if (execve(argv[0], argv, environ) < 0)
         { // error
-            printf("%s: command not found (child process)\n", argv[0]);
+            printf("%s: Command not found\n", argv[0]);
             exit(0);
         }
     }
@@ -398,7 +398,6 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    /*
     struct job_t *jb;
     jb = getjobpid(jobs, pid);
     while (jb->state == FG)
@@ -407,9 +406,8 @@ void waitfg(pid_t pid)
     }
 
     return;
-    */
-   while(fgpid(jobs)==pid) {}
-   return;
+   //while(fgpid(jobs)==pid) {}
+   //return;
 }
 
 /*****************
@@ -433,11 +431,18 @@ void sigchld_handler(int sig)
 
     while ((process_id = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0)
     {
-        if (WIFEXITED(status) || WIFSIGNALED(status))
+        if (WIFEXITED(status))
         {
+            //printf("Job [%d] (%d) by signal 1", jobs->jid, jobs->pid); // ADDING THIS LINE
+            deletejob(jobs, process_id);
+
+        }
+        else if(WIFSIGNALED(status)){
+            printf("Job [%d] (%d) terminated by signal %d \n", pid2jid(process_id), process_id, WTERMSIG(status)); // ADDING THIS LINE
             deletejob(jobs, process_id);
         }
         else{
+            printf("Job [%d] (%d) terminated by signal %d \n", pid2jid(process_id), process_id, WIFSTOPPED(status)); // ADDING THIS LINE
             struct job_t *job;
 			job = getjobpid(jobs, process_id);
 			job -> state = ST;

@@ -2,8 +2,8 @@
  * tsh - A tiny shell program with job control
  *
  * <Put your name and ID here>
- *
- * Victor Sandoval 862108192
+ * Victor Sandoval  862108192
+ * Fnu Azma         862271787
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -174,17 +174,19 @@ void eval(char *cmdline) // NEED TO CHANGE
 {
     char **argv = malloc(MAXARGS);
     int bg = parseline(cmdline, argv);
-    
+    sigset_t mask;
+    pid_t pid;
     // returns if command line empty or has built in command
     if (cmdline[0] == '\n' || builtin_cmd(argv))
     {
         return;
     }
-    sigset_t mask;
+    
     sigemptyset(&mask);
     sigaddset(&mask, SIGCHLD);
     sigprocmask(SIG_BLOCK, &mask, NULL); // blocking child till parent adds job
-    pid_t pid = fork();
+    pid = fork();
+    
     if (pid < 0) // fork error
     {
         printf("Fork unsuccessful");
@@ -202,10 +204,13 @@ void eval(char *cmdline) // NEED TO CHANGE
     }
     else // parent
     {
+        
         if (bg) // background
         {
+            
             addjob(jobs, pid, BG, cmdline);
             sigprocmask(SIG_UNBLOCK, &mask, NULL);
+            printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
         }
         else // foregorund
         {
@@ -215,6 +220,7 @@ void eval(char *cmdline) // NEED TO CHANGE
         }
     }
     return;
+    
 }
 
 /*
@@ -286,22 +292,17 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv)
 {
-    char quit[] = "quit";
-    char fg[] = "fg";
-    char bg[] = "bg";
-    char jbs[] = "jobs";
-
-    if (!strcmp(argv[0], quit))
+    if (!strcmp(argv[0], "quit"))
     { // quit command
         exit(0);
         return 1;
     }
-    else if ((!strcmp(argv[0], fg) || !strcmp(argv[0], bg)))
+    else if ((!strcmp(argv[0], "fg") || !strcmp(argv[0], "bg")))
     {
         do_bgfg(argv);
         return 1;
     }
-    else if (!strcmp(argv[0], jbs))
+    else if (!strcmp(argv[0], "jobs"))
     {
         listjobs(jobs);
         return 1;
@@ -315,81 +316,50 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv)
 {
-    
-    int jd, pd;
-    char bg[] = "bg";
     struct job_t *job;
-
-    if (!strcmp(argv[0], bg))
-    {
-        if (argv[1] == NULL)
-        {
-            printf("bg command requires PID or Job ID argument\n");
-            return;
-        }
-        else if (argv[1][0] == '%')
-        {
-            jd = atoi(&argv[1][1]);
-            if ((job = getjobjid(jobs, jd)) == NULL)
-            {
-                printf("%s: No such job\n", argv[1]);
-                return;
-            }
-        }
-        else if (isdigit(argv[1][0]))
-        {
-            pd = atoi(argv[1]);
-            if ((job = getjobjid(jobs, pd)) == NULL)
-            {
-                printf("(%s): No such process\n", argv[1]);
-                return;
-            }
-        }
-        else
-        {
-            printf("bg: argument must be a PID or %%jobid\n");
-            return;
-        }
-        kill(-(job->pid), SIGCONT);
-        job->state = BG;
-        printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
+    int jid;
+    char* current_jid;
+    char* current_pid;
+    pid_t pid;
+    if(argv[1] == NULL){
+        printf("%s This PID or %%jobid argument\n",argv[0]);
     }
-    else
-    {
-        if (argv[1] == NULL)
-        {
-            printf("fg command requires PID or %%jobid argument\n");
-            return;
-        }
-        else if (argv[1][0] == '%')
-        {
-            jd = atoi(&argv[1][1]);
-            if ((job = getjobjid(jobs, jd)) == NULL)
-            {
-                printf("%s: No such job\n", argv[1]);
+    else if((argv[1][0]!= '%') && (!isdigit(argv[1][0]))){
+        printf("%s: argument must PID or %%jobid\n",argv[0]);
+    }
+    else{
+        if(argv[1][0] == '%'){
+            current_jid = argv[1]+1; 
+            if(!(jid = atoi(current_jid))){  
+                printf("JID error. This field only can contains numbers \n");
+                return;
+            }
+            job = getjobjid(jobs,jid);
+            if(job == NULL){
+                printf("%%%d: No current job\n",jid);
                 return;
             }
         }
-        else if (isdigit(argv[1][0]))
-        {
-            pd = atoi(argv[1]);
-            if ((job = getjobjid(jobs, pd)) == NULL)
-            {
-                printf("(%s): No such process\n", argv[1]);
-                return;
+        else{
+            current_pid = argv[1];
+            pid = atoi(current_pid);
+            job = getjobpid(jobs,pid);
+            if(job == NULL){    
+                printf("(%d): No current process\n",pid);  
+                return;              
             }
         }
-        else
-        {
-            printf("fg: argument must be a PID or %%jobid\n");
-            return;
+        if(!(strcmp(argv[0],"bg"))){    
+            job->state = BG;                       
+            kill(-job->pid,SIGCONT);
+	    }
+        else{       
+            job->state = FG;
+            kill(-job->pid,SIGCONT);    
+            waitfg(job->pid);        
         }
-        kill(-(job->pid), SIGCONT);
-        job->state = FG;
-        waitfg(job->pid);
     }
     return;
-
 
 }
 
@@ -398,16 +368,9 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    struct job_t *jb;
-    jb = getjobpid(jobs, pid);
-    while (jb->state == FG)
-    {
-        sleep(1);
-    }
-
+    
+    while(fgpid(jobs) == pid) sleep(1);
     return;
-   //while(fgpid(jobs)==pid) {}
-   //return;
 }
 
 /*****************
@@ -433,7 +396,6 @@ void sigchld_handler(int sig)
     {
         if (WIFEXITED(status))
         {
-            //printf("Job [%d] (%d) by signal 1", jobs->jid, jobs->pid); // ADDING THIS LINE
             deletejob(jobs, process_id);
 
         }
@@ -442,10 +404,11 @@ void sigchld_handler(int sig)
             deletejob(jobs, process_id);
         }
         else{
-            printf("Job [%d] (%d) terminated by signal %d \n", pid2jid(process_id), process_id, WIFSTOPPED(status)); // ADDING THIS LINE
             struct job_t *job;
 			job = getjobpid(jobs, process_id);
 			job -> state = ST;
+            printf("Job [%d] (%d) stopped by signal %d \n", pid2jid(process_id), process_id, WIFSTOPPED(status)); // ADDING THIS LINE
+
         }
     }
 

@@ -350,7 +350,8 @@ void do_bgfg(char **argv)
             }
         }
         if(!(strcmp(argv[0],"bg"))){    
-            job->state = BG;                       
+            job->state = BG;             
+            printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);          
             kill(-job->pid,SIGCONT);
 	    }
         else{       
@@ -440,19 +441,8 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig)
 {
-    struct job_t *job;
-
     pid_t process_id = fgpid(jobs);    // finding process id of foreground process
-    job = getjobpid(jobs, process_id); // finding job id using process id to change state
-
-    if (process_id != 0)
-    {
-
-        kill(-process_id, SIGTSTP);
-
-        job->state = ST; // stopping the process--changing state to stop
-    }
-
+    kill(-process_id, SIGTSTP);
     return;
 }
 

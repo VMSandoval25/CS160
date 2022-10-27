@@ -318,20 +318,17 @@ void do_bgfg(char **argv)
 {
     struct job_t *job;
     int jid;
-    char* current_jid;
-    char* current_pid;
     pid_t pid;
     if(argv[1] == NULL){
         printf("%s fg: command requires PID or %%jobid argument\n",argv[0]);
     }
     else if((argv[1][0]!= '%') && (!isdigit(argv[1][0]))){
-        printf("%s: argument must PID or %%jobid\n",argv[0]);
+        printf("%s: argument must have PID or %%jobid\n",argv[0]);
     }
     else{
         if(argv[1][0] == '%'){
-            current_jid = argv[1]+1; 
-            if(!(jid = atoi(current_jid))){  
-                printf("JID error. This field only can contains numbers \n");
+            if(!(jid = atoi(argv[1]+1))){  
+                printf("JID error\n");
                 return;
             }
             job = getjobjid(jobs,jid);
@@ -341,8 +338,7 @@ void do_bgfg(char **argv)
             }
         }
         else{
-            current_pid = argv[1];
-            pid = atoi(current_pid);
+            pid = atoi(argv[1]);
             job = getjobpid(jobs,pid);
             if(job == NULL){    
                 printf("(%d): No such process\n",pid);  

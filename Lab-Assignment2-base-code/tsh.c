@@ -385,6 +385,8 @@ void waitfg(pid_t pid)
  *     available zombie children, but doesn't wait for any other
  *     currently running children to terminate.
  */
+
+ 
 void sigchld_handler(int sig)
 {
     pid_t process_id; // represents process ID
@@ -405,7 +407,7 @@ void sigchld_handler(int sig)
             deletejob(jobs, process_id);
         }
         else{
-            printf("Job [%d] (%d) stopped by signal %d \n", pid2jid(process_id), process_id, WIFSTOPPED(status)); // ADDING THIS LINE
+            printf("Job [%d] (%d) stopped by signal %d \n", pid2jid(process_id), process_id, WSTOPSIG(status)); // ADDING THIS LINE
             struct job_t *job;
 			job = getjobpid(jobs, process_id);
 			job -> state = ST;
@@ -415,6 +417,7 @@ void sigchld_handler(int sig)
 
     return;
 }
+
 
 /*
  * sigint_handler - The kernel sends a SIGINT to the shell whenver the

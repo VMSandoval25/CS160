@@ -322,7 +322,7 @@ void do_bgfg(char **argv)
     char* current_pid;
     pid_t pid;
     if(argv[1] == NULL){
-        printf("%s This PID or %%jobid argument\n",argv[0]);
+        printf("%s fg: command requires PID or %%jobid argument\n",argv[0]);
     }
     else if((argv[1][0]!= '%') && (!isdigit(argv[1][0]))){
         printf("%s: argument must PID or %%jobid\n",argv[0]);
@@ -336,7 +336,7 @@ void do_bgfg(char **argv)
             }
             job = getjobjid(jobs,jid);
             if(job == NULL){
-                printf("%%%d: No current job\n",jid);
+                printf("%%%d: No such job\n",jid);
                 return;
             }
         }
@@ -345,7 +345,7 @@ void do_bgfg(char **argv)
             pid = atoi(current_pid);
             job = getjobpid(jobs,pid);
             if(job == NULL){    
-                printf("(%d): No current process\n",pid);  
+                printf("(%d): No such process\n",pid);  
                 return;              
             }
         }
@@ -404,10 +404,10 @@ void sigchld_handler(int sig)
             deletejob(jobs, process_id);
         }
         else{
+            printf("Job [%d] (%d) stopped by signal %d \n", pid2jid(process_id), process_id, WIFSTOPPED(status)); // ADDING THIS LINE
             struct job_t *job;
 			job = getjobpid(jobs, process_id);
 			job -> state = ST;
-            printf("Job [%d] (%d) stopped by signal %d \n", pid2jid(process_id), process_id, WIFSTOPPED(status)); // ADDING THIS LINE
 
         }
     }
@@ -427,7 +427,7 @@ void sigint_handler(int sig)
     if (process_id != 0) // found a job in fg
     {
         kill(-process_id, SIGINT);
-        deletejob(jobs, process_id);
+        //deletejob(jobs, process_id); We dont need this
     }
 
     return;
